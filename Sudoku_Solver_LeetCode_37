@@ -1,1 +1,82 @@
+class Solution:
+    def solveSudoku(self, board: List[List[str]]) -> None:
+        rows = [0] * 9
+        cols = [0] * 9
+        boxes = [0] * 9
+        empties = []
+
+        def box_index(r, c):
+            return (r // 3) * 3 + (c // 3)
+
+        # Initialize masks
+        for r in range(9):
+            for c in range(9):
+                if board[r][c] == '.':
+                    empties.append((r, c))
+                else:
+                    val = int(board[r][c])
+                    mask = 1 << val
+                    rows[r] |= mask
+                    cols[c] |= mask
+                    boxes[box_index(r, c)] |= mask
+
+        def backtrack():
+            if not empties:
+                return True
+
+            # MRV heuristic: pick the cell with the fewest candidates
+            min_candidates = 10
+            target_i = -1
+            target_r = target_c = 0
+
+            for i, (r, c) in enumerate(empties):
+                b = box_index(r, c)
+                used = rows[r] | cols[c] | boxes[b]
+                candidates = (~used) & 0x3FE  # bits 1-9
+                cnt = candidates.bit_count()
+                if cnt < min_candidates:
+                    min_candidates = cnt
+                    target_i = i
+                    target_r, target_c = r, c
+                if cnt == 1:
+                    break
+
+            if min_candidates == 0:
+                return False
+
+            # remove chosen cell from empties
+            r, c = target_r, target_c
+            b = box_index(r, c)
+            used = rows[r] | cols[c] | boxes[b]
+            candidates = (~used) & 0x3FE
+            empties[target_i], empties[-1] = empties[-1], empties[target_i]
+            cell = empties.pop()
+
+            # try candidates
+            while candidates:
+                lowbit = candidates & -candidates
+                val = lowbit.bit_length() - 1
+                mask = 1 << val
+
+                board[r][c] = str(val)
+                rows[r] |= mask
+                cols[c] |= mask
+                boxes[b] |= mask
+
+                if backtrack():
+                    return True
+
+                # undo
+                board[r][c] = '.'
+                rows[r] ^= mask
+                cols[c] ^= mask
+                boxes[b] ^= mask
+
+                candidates ^= lowbit
+
+            empties.append(cell)
+            empties[target_i], empties[-1] = empties[-1], empties[target_i]
+            return False
+
+        backtrack()
 
